@@ -20,12 +20,6 @@ Then run `bundle install`
 
 ### Configuration
 
-Disable caching classes in `config/environments/test.rb` when the watcher is running:
-
-```ruby
-config.cache_classes = ENV['RSPEC_WATCHER'].nil?
-```
-
 Rules for the watcher and other options can be customized, for example in a Rails initializer. Not passing a block to a `watch` rule will run all specs. The configuration shown here is used by default:
 
 ```ruby
@@ -52,6 +46,9 @@ if ENV['RSPEC_WATCHER']
     end
 
     watch 'config', only: /routes\.rb\z/
+
+    run_specs_on_key 'm', 'spec/models'
+    run_specs_on_key 'r', ['spec/controllers', 'spec/requests']
   end
 end
 ```
@@ -60,7 +57,7 @@ end
 
 Start the watcher with `RAILS_ENV=test bundle exec rake rspec_watcher:watch`
 
-In order to use the watcher without Rails, `path_inferrer` and `reloader` need to be configured. Check `lib/rspec-watcher.rb`.
+In order to use the watcher without Rails, `path_inferrer` needs to be configured. Check `lib/rspec-watcher.rb`.
 
 ## Development
 

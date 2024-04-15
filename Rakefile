@@ -2,3 +2,19 @@
 
 require "bundler/gem_tasks"
 task default: %i[]
+
+require_relative "lib/rspec-watcher"
+
+task :watch do
+  RSpecWatcher.configure do
+    watch "spec"
+
+    run_specs_on_key 'm', ['spec/models']
+    run_specs_on_key 'c', ['spec/controllers']
+    run_specs_on_key 'f', ['spec/features']
+  end
+
+  RSpecWatcher.start
+
+  sleep
+end
