@@ -32,8 +32,19 @@ class KeyWatcher
     end
   end
 
-  on('r', 'retry failed') do
+  # TODO: duplicated in rspec-watcher.rb..
+  def self.clear_screen
+    puts "\e[H\e[2J"
+  end
+
+  on('1', 'retry failed') do
     RSpecWatcher.run_specs(RSpecWatcher.failed_specs)
+  end
+
+  on('2', 'clear failures') do
+    RSpecWatcher.reset_failures
+    clear_screen
+    print_help
   end
 
   on('a', 'run all specs') do
@@ -42,7 +53,11 @@ class KeyWatcher
   end
 
   # add a "/' key to run specs with contents that match a pattern
-  # could be cool if it autocompleted to show matches?
+  # could be cool if it autocompleted to show matches as you type?
+  # run bare rg as you type, then use json rg when hitting enter - or always
+  # json?
+  # `rg --json blends spec/*_spec.rb`.split("\n").map { |r| JSON.parse(r) }.filter_map { |r| r.dig("data", "path", "text") }.uniq
+  # press up/down to cycle through previous searches
 
   # TODO: escape key to cancel running specs?
   # or - if catching ctrl-C - exit cleanly in spec runs

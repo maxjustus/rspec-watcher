@@ -48,7 +48,7 @@ if ENV['RSPEC_WATCHER']
     watch 'config', only: /routes\.rb\z/
 
     run_specs_on_key 'm', 'spec/models'
-    run_specs_on_key 'r', ['spec/controllers', 'spec/requests']
+    run_specs_on_key 'e', ['spec/controllers', 'spec/requests']
   end
 end
 ```

@@ -9,9 +9,10 @@ task :watch do
   RSpecWatcher.configure do
     watch "spec"
 
-    run_specs_on_key 'm', ['spec/models']
-    run_specs_on_key 'c', ['spec/controllers']
-    run_specs_on_key 'f', ['spec/features']
+    run_specs_on_key 'm', 'spec/models'
+    run_specs_on_key 'c', 'spec/controllers'
+    run_specs_on_key 'f', 'spec/features'
+    run_specs_with_matching_constants_in 'lib'
   end
 
   RSpecWatcher.start

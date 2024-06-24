@@ -5,6 +5,7 @@ require 'rspec/core'
 
 require_relative 'rspec_watcher/version'
 require_relative 'rspec_watcher/key_watcher'
+require_relative 'rspec_watcher/rg'
 require_relative 'rspec_watcher/railtie' if defined?(Rails)
 
 module RSpecWatcher
@@ -40,7 +41,21 @@ module RSpecWatcher
       KeyWatcher.on(key, description, &block)
     end
 
-    def run_specs_on_key(key, paths)
+    # TODO: add to readme
+    def run_specs_with_matching_constants_in(*paths)
+      raise "rg is required to run specs with matching constants" unless system("which rg > /dev/null")
+
+      paths.each do |path|
+        watch(path, only: /\.rb\z/) do |modified, added, removed|
+          Rg.find_matching_specs(modified + added + removed)
+        end
+      end
+    rescue => e
+      puts "Error running specs with matching constants: #{e}"
+    end
+
+    # TODO: add to readme
+    def run_specs_on_key(key, *paths)
       description = "run #{paths.join(' ')}"
       on_key(key, description) do
         reset_failures
@@ -48,6 +63,8 @@ module RSpecWatcher
       end
     end
 
+    # ultimately maybe this should uses curses or something and have a separate
+    # pane for output - shiz is too glitchy as it is..
     def start
       # suppress listen logging
       Listen.logger = ::Logger.new('/dev/null', level: ::Logger::UNKNOWN)
