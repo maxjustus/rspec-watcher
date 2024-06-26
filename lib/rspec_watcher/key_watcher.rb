@@ -24,7 +24,7 @@ class KeyWatcher
     puts "------------------------------------------------------------------------------------------"
     puts "---- Press a key to run a command or Ctrl-C to quit ----"
     self.callbacks.each do |_key, callback|
-      if callback.key == "r"
+      if callback.key == "1"
         puts "  " + callback.print + " (#{RSpecWatcher.failed_specs.count} failed)"
       else
         puts "  " + callback.print
