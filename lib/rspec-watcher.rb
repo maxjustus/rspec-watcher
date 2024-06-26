@@ -99,6 +99,11 @@ module RSpecWatcher
     def start_runner
       Thread.new do
         while paths = queue.pop
+          sleep 0.1 # give file event watchers a chance to enqueue more paths
+          # drain the queue and run all specs in one go
+          paths += queue.pop until queue.empty?
+          paths.uniq!
+
           begin
             trap('INT') do
               if self.wants_to_quit
