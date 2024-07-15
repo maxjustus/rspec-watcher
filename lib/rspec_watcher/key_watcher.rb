@@ -22,7 +22,7 @@ class KeyWatcher
     puts ""
     puts "------------------------------------------------------------------------------------------"
     puts "------------------------------------------------------------------------------------------"
-    puts "---- Press a key to run a command or Ctrl-C to quit ----"
+    puts "---- Press a key to run a command, Ctrl-C to quit or Ctrl-Q to stop running suite. ----"
     self.callbacks.each do |_key, callback|
       if callback.key == "1"
         puts "  " + callback.print + " (#{RSpecWatcher.failed_specs.count} failed)"
@@ -64,22 +64,47 @@ class KeyWatcher
 
   def start
     Thread.new do
-      loop do
-        # use this instead of STDIN.getch so Ctrl-C can be caught
-        # by forked rspec processes for clean exit
+      begin
+        original_term_settings = `stty -g`.chomp
         system("stty raw -echo")
-        char = STDIN.read_nonblock(1) rescue nil
-        system("stty -raw echo")
 
-        if self.class.callbacks[char]
-          self.class.callbacks[char].call
+        loop do
+          # use this instead of STDIN.getch so Ctrl-C can be caught
+          # by forked rspec processes for clean exit
+          char = STDIN.read_nonblock(1) rescue nil
+
+          # Ctrl-Q
+          if char == "\u0011"
+            RSpecWatcher.kill_runner
+          end
+
+          if char == "\u0003" # Ctrl-C
+            if !RSpecWatcher.runner_pid
+              exit!(1)
+            end
+
+            if RSpecWatcher.wants_to_quit
+              exit!(1)
+            else
+              puts "Press Ctrl-C again to quit"
+              RSpecWatcher.kill_runner
+              RSpecWatcher.wants_to_quit = true
+              # TODO: this needs to quit as soon as the forked process is done
+            end
+          end
+
+          if self.class.callbacks[char]
+            self.class.callbacks[char].call
+          end
+
+          # TODO: add queue for all console output and print it here
+          # That way changing stty settings won't sometimes mangle rspec output.
+          # Would require passing queue as logger to rspec I think..
+
+          sleep(0.1)
         end
-
-        # TODO: add queue for all console output and print it here
-        # That way changing stty settings won't sometimes mangle rspec output.
-        # Would require passing queue as logger to rspec I think..
-
-        sleep(0.1)
+      ensure
+        system("stty #{original_term_settings}")
       end
     end
   end

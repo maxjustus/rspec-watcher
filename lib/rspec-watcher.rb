@@ -8,6 +8,41 @@ require_relative 'rspec_watcher/key_watcher'
 require_relative 'rspec_watcher/rg'
 require_relative 'rspec_watcher/railtie' if defined?(Rails)
 
+# This allows me to read key presses in a continuous loop without blocking
+# by putting the terminal in raw mode without garbling spec run output.
+# Raw mode requires that newlines be printed with \r\n instead of just \n
+# for the terminal to display them as newlines.
+class RawNewlinePrintingRawIO < DelegateClass(IO)
+  def initialize
+    super(IO.new(1, 'w'))
+  end
+
+  def write(data)
+    super(translate_newlines(data)[0])
+  end
+
+  # puts adds a newline after each arg if it doesn't
+  # already end with one
+  def puts(*args)
+    translate_newlines(*args).each do |arg|
+      arg += "\n" unless arg.end_with?("\n")
+
+      write(arg)
+    end
+  end
+
+  def print(*args)
+    super(*translate_newlines(*args))
+  end
+
+  def translate_newlines(*args)
+    args.map { |arg| arg.gsub("\n", "\r\n") }
+  end
+end
+
+$stdout = RawNewlinePrintingRawIO.new
+$stderr = RawNewlinePrintingRawIO.new
+
 module RSpecWatcher
   SPEC_INFERRER = ->(_modified, _added, _removed) { [] }
   PATH_INFERRER = ->(path) do
@@ -23,7 +58,7 @@ module RSpecWatcher
   @queue = Queue.new
 
   class << self
-    attr_accessor :path_inferrer, :running, :failed_specs, :wants_to_quit
+    attr_accessor :path_inferrer, :running, :failed_specs, :wants_to_quit, :runner_pid
     attr_reader :rules, :queue
 
     def configure(&block)
@@ -57,6 +92,7 @@ module RSpecWatcher
     # TODO: add to readme
     def run_specs_on_key(key, *paths)
       description = "run #{paths.join(' ')}"
+
       on_key(key, description) do
         reset_failures
         run_specs(Array(paths))
@@ -68,10 +104,11 @@ module RSpecWatcher
     def start
       # suppress listen logging
       Listen.logger = ::Logger.new('/dev/null', level: ::Logger::UNKNOWN)
-      print_help
+
       listeners.each(&:start)
       start_runner
       KeyWatcher.new.start
+      print_help
     end
 
     def reset_failures
@@ -84,6 +121,10 @@ module RSpecWatcher
 
     def print_help
       KeyWatcher.print_help
+    end
+
+    def kill_runner
+      Process.kill('USR1', runner_pid) if runner_pid
     end
 
     private
@@ -105,15 +146,6 @@ module RSpecWatcher
           paths.uniq!
 
           begin
-            trap('INT') do
-              if self.wants_to_quit
-                exit!(1)
-              else
-                puts "Caught Ctrl-C. Press Ctrl-C again to quit."
-                self.wants_to_quit = true
-              end
-            end
-
             rd_failures, wr_failures = IO.pipe
             rd_exit, wr_exit = IO.pipe
 
@@ -129,10 +161,12 @@ module RSpecWatcher
 
               # just doing this directly to avoid multiple prints of "rspec is
               # quitting" from each prspec worker
-              trap('INT') do
+              trap('USR1') do
                 if RSpec.world.wants_to_quit
+                  wr_exit.puts 'cancelled'
                   exit!(1)
                 else
+                  puts "RSpec runner is shutting down. Press Ctrl-Q again to force stop (at_exit hooks will be skipped)."
                   RSpec.world.wants_to_quit = true
                 end
               end
@@ -155,15 +189,24 @@ module RSpecWatcher
               end
             end
 
+            self.runner_pid = pid
+
             done_status = rd_exit.gets.chomp
-            if done_status == "cancelled"
-              self.wants_to_quit = false
+            if done_status == "cancelled" && self.wants_to_quit
+              exit!(1)
             end
 
-            # deserialize the failed specs from the child spec running process
-            @failed_specs = Marshal.load(rd_failures.gets)
+            if done_status == "done"
+              # deserialize the failed specs from the child spec running process
+              @failed_specs = Marshal.load(rd_failures.gets)
 
-            Process.wait(pid)
+              # somehow - make this conditional on ctrl-c being pressed
+              # maybe store the pid in a global and send INT to it?
+              # Process.kill('INT', pid)
+              Process.wait(pid, Process::WNOHANG)
+            end
+
+            self.runner_pid = nil
 
             sleep 0.3
 

@@ -8,6 +8,7 @@ describe "test" do
 
   describe 'RspecWatcher::Rg' do
     it "finds matching specs" do
+      sleep 2
       expect(1).to eq(1)
     end
   end
