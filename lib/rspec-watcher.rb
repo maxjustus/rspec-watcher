@@ -36,7 +36,7 @@ class RawNewlinePrintingRawIO < DelegateClass(IO)
   end
 
   def translate_newlines(*args)
-    args.map { |arg| arg.gsub("\n", "\r\n") }
+    args.map { |arg| arg.to_s.gsub("\n", "\r\n") }
   end
 end
 
@@ -74,19 +74,6 @@ module RSpecWatcher
 
     def on_key(key, description, &block)
       KeyWatcher.on(key, description, &block)
-    end
-
-    # TODO: add to readme
-    def run_specs_with_matching_constants_in(*paths)
-      raise "rg is required to run specs with matching constants" unless system("which rg > /dev/null")
-
-      paths.each do |path|
-        watch(path, only: /\.rb\z/) do |modified, added, removed|
-          Rg.find_matching_specs(modified + added + removed)
-        end
-      end
-    rescue => e
-      puts "Error running specs with matching constants: #{e}"
     end
 
     # TODO: add to readme
@@ -156,11 +143,12 @@ module RSpecWatcher
             # because forking does away with that need
             pid = fork do
               clear_screen
-              puts "Running specs: #{paths.join(' ')}"
+              puts "Running specs: #{paths.join(' ')} (Ctrl-Q to cancel)"
               RSpec.world.wants_to_quit = false
 
-              # just doing this directly to avoid multiple prints of "rspec is
-              # quitting" from each prspec worker
+              # technically I chould use an IO.pipe here to communicate
+              # with the parent process - USR1 is easy enough though
+              # to indicate to this pid that I want it to quit
               trap('USR1') do
                 if RSpec.world.wants_to_quit
                   wr_exit.puts 'cancelled'

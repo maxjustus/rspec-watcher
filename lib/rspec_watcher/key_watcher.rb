@@ -1,3 +1,5 @@
+require "readline"
+
 class KeyWatcher
   Callback = Struct.new(:key, :description, :block) do
     def call
@@ -23,6 +25,7 @@ class KeyWatcher
     puts "------------------------------------------------------------------------------------------"
     puts "------------------------------------------------------------------------------------------"
     puts "---- Press a key to run a command, Ctrl-C to quit or Ctrl-Q to stop running suite. ----"
+    puts ""
     self.callbacks.each do |_key, callback|
       if callback.key == "1"
         puts "  " + callback.print + " (#{RSpecWatcher.failed_specs.count} failed)"
@@ -30,6 +33,7 @@ class KeyWatcher
         puts "  " + callback.print
       end
     end
+    puts "  /: search for and run specs with matching contents"
   end
 
   # TODO: duplicated in rspec-watcher.rb..
@@ -93,6 +97,10 @@ class KeyWatcher
             end
           end
 
+          if char == "/"
+            prompt_for_search
+          end
+
           if self.class.callbacks[char]
             self.class.callbacks[char].call
           end
@@ -106,6 +114,22 @@ class KeyWatcher
       ensure
         system("stty #{original_term_settings}")
       end
+    end
+  end
+
+  def prompt_for_search
+    puts ""
+    # readline handles terminal mode and switches back when done
+    search = Readline.readline("Search regexp (q to exit): ", true)
+    case search.chomp
+    when 'exit', 'quit', 'q'
+      KeyWatcher.clear_screen
+      KeyWatcher.print_help
+    when ''
+      # NOOP
+    else
+      paths = RSpecWatcher::Rg.search_for_specs(search)
+      RSpecWatcher.run_specs(paths)
     end
   end
 end
