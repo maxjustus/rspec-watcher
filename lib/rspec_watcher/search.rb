@@ -1,8 +1,8 @@
 require 'json'
 
-module RSpecWatcher::Rg
+module RSpecWatcher::Search
   class << self
-    def find_matching_specs(paths)
+    def specs_with_matching_constants_in(paths)
       constant_definitions = extract_constant_definitions(Array(paths))
       pattern = constant_definitions.flat_map { |constant|
         [
@@ -14,21 +14,19 @@ module RSpecWatcher::Rg
 
       puts "Finding specs for: #{pattern}"
 
-      extract_match_paths(`rg -i --mmap --json --glob '*_spec.rb' "#{pattern}"`)
+      search_for_specs(pattern)
     end
 
     def search_for_specs(pattern)
-      extract_match_paths(`rg -i --mmap --json --glob '*_spec.rb' "#{pattern}"`)
+      # TODO: validate terminal escaping here..
+      results = if `which rg`.empty?
+                  pattern = pattern.gsub('|', '\|')
+                  `grep -ril --include '*_spec.rb' "#{pattern}" .`
+                else
+                  `rg -li --mmap --glob '*_spec.rb' "#{pattern}"`
+                end
+      results.split("\n").map(&:strip)
     end
-
-    def extract_match_paths(json)
-      json
-        .split("\n")
-        .map { |r| JSON.parse(r) }
-        .filter_map { |r| r.dig("data", "path", "text") }
-        .uniq
-    end
-
 
     # TODO: add some known specializations. Factories/factory references,
     # routes, etc.

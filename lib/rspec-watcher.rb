@@ -5,7 +5,7 @@ require 'rspec/core'
 
 require_relative 'rspec_watcher/version'
 require_relative 'rspec_watcher/key_watcher'
-require_relative 'rspec_watcher/rg'
+require_relative 'rspec_watcher/search'
 require_relative 'rspec_watcher/railtie' if defined?(Rails)
 
 # This allows me to read key presses in a continuous loop without blocking

@@ -13,7 +13,7 @@ task :watch do
 
     watch "lib" do |modified, added, removed|
       puts "Modified: #{modified}"
-      paths = modified + added + RSpecWatcher::Rg.find_matching_specs(modified + added + removed)
+      paths = modified + added + RSpecWatcher::Search.specs_with_matching_constants_in(modified + added + removed)
       paths
     end
 

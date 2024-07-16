@@ -56,16 +56,6 @@ class KeyWatcher
     RSpecWatcher.run_specs(['spec'])
   end
 
-  # add a "/' key to run specs with contents that match a pattern
-  # could be cool if it autocompleted to show matches as you type?
-  # run bare rg as you type, then use json rg when hitting enter - or always
-  # json?
-  # `rg --json blends spec/*_spec.rb`.split("\n").map { |r| JSON.parse(r) }.filter_map { |r| r.dig("data", "path", "text") }.uniq
-  # press up/down to cycle through previous searches
-
-  # TODO: escape key to cancel running specs?
-  # or - if catching ctrl-C - exit cleanly in spec runs
-
   def start
     Thread.new do
       begin
@@ -128,7 +118,7 @@ class KeyWatcher
     when ''
       # NOOP
     else
-      paths = RSpecWatcher::Rg.search_for_specs(search)
+      paths = RSpecWatcher::Search.search_for_specs(search)
       RSpecWatcher.run_specs(paths)
     end
   end
