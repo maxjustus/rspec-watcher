@@ -1,4 +1,4 @@
-require "readline"
+require "reline"
 
 class KeyWatcher
   Callback = Struct.new(:key, :description, :block) do
@@ -109,8 +109,8 @@ class KeyWatcher
 
   def prompt_for_search
     puts ""
-    # readline handles terminal mode and switches back when done
-    search = Readline.readline("Search regexp (q to exit): ", true)
+    # reline handles terminal mode and switches back when done
+    search = Reline.readline("Search regexp (q or Ctrl-C to exit): ", true)
     case search.chomp
     when 'exit', 'quit', 'q'
       KeyWatcher.clear_screen
@@ -121,5 +121,8 @@ class KeyWatcher
       paths = RSpecWatcher::Search.search_for_specs(search)
       RSpecWatcher.run_specs(paths)
     end
+  rescue Interrupt
+    KeyWatcher.clear_screen
+    KeyWatcher.print_help
   end
 end
